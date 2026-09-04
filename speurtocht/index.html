@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1E4B3A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>Speurtocht</title>
+
+<script>
+/* =====================================================================
+   ROUTE-CONFIGURATIE — dit is het enige deel dat je normaal aanpast.
+   Coördinaten in decimale graden (WGS84), straal in meters.
+   Volgorde: de punten worden in deze volgorde "actief"; alleen het
+   eerstvolgende niet-voltooide punt kan een vraag triggeren.
+   Zet VOLGORDE_VAST op false als elk punt in willekeurige volgorde mag.
+   ===================================================================== */
+const ROUTE = {
+  naam: 'Proefroute Halle',
+  volgordeVast: true,
+  punten: [
+    { id: 'p1', naam: 'Kerk',        lat: 51.9420, lon: 6.4110, straal: 25,
+      vraag: 'Welk jaartal staat boven de kerkdeur?',
+      antwoord: ['1893'] },
+    { id: 'p2', naam: 'Molen',       lat: 51.9445, lon: 6.4180, straal: 30,
+      vraag: 'Hoeveel wieken heeft de molen?',
+      antwoord: ['4', 'vier'] },
+    { id: 'p3', naam: 'Bankje bos',  lat: 51.9470, lon: 6.4250, straal: 25,
+      vraag: 'Welke naam staat op het plaatje van het bankje?',
+      antwoord: null },   // null = vrije invoer, geen controle
+  ],
+};
+</script>
+
+<style>
+  :root {
+    --veld: #E7EBE1;          /* achtergrond, licht mosgroen papier */
+    --bos: #1E4B3A;           /* primaire donkergroen */
+    --bos-diep: #123227;
+    --paaltje: #C7452C;       /* wandelroute-markering rood */
+    --inkt: #14201B;
+    --inkt-zacht: #56665E;
+    --lijn: #C9D1C3;
+    --wit: #FBFCF9;
+    --r: 14px;
+    font-family: ui-rounded, "SF Pro Rounded", "Segoe UI Variable", system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--veld); color: var(--inkt); min-height: 100%; }
+  body { display: flex; flex-direction: column; min-height: 100dvh;
+         padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  button { font: inherit; }
+  :focus-visible { outline: 3px solid var(--paaltje); outline-offset: 2px; }
+
+  header { padding: 18px 20px 6px; }
+  header h1 { margin: 0; font-size: 1.05rem; font-weight: 600; color: var(--inkt-zacht); }
+  .voortgang { display: flex; gap: 6px; margin-top: 10px; }
+  .voortgang span { flex: 1; height: 5px; border-radius: 3px; background: var(--lijn); }
+  .voortgang span.klaar { background: var(--bos); }
+  .voortgang span.actief { background: var(--paaltje); }
+
+  /* Kompas / afstandsblok — het ene opvallende element */
+  .kompas { margin: 12px 16px 0; background: var(--bos); color: var(--veld); border-radius: 22px;
+            padding: 24px 22px 20px; position: relative; overflow: hidden; }
+  .kompas .naar { font-size: .95rem; opacity: .8; }
+  .kompas .doel { font-size: 1.5rem; font-weight: 700; margin: 2px 0 14px; }
+  .kompas .afstand { font-size: clamp(3.4rem, 18vw, 5.2rem); font-weight: 800; line-height: .95;
+                     letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .kompas .afstand small { font-size: .35em; font-weight: 600; margin-left: .15em; letter-spacing: 0; }
+  .kompas .status { margin-top: 12px; font-size: .9rem; opacity: .85; min-height: 1.3em; }
+  .kompas .pijl { position: absolute; right: 18px; top: 18px; width: 54px; height: 54px;
+                  transition: transform .4s ease; }
+  @media (prefers-reduced-motion: reduce) { .kompas .pijl { transition: none; } }
+  .kompas.klaar { background: var(--bos-diep); }
+
+  .lijst { list-style: none; margin: 18px 16px 0; padding: 0; }
+  .lijst li { display: flex; align-items: center; gap: 14px; padding: 12px 6px;
+              border-top: 1px solid var(--lijn); }
+  .lijst li:first-child { border-top: 0; }
+  .lijst .bol { width: 30px; height: 30px; border-radius: 50%; border: 3px solid var(--lijn);
+                display: grid; place-items: center; font-size: .8rem; font-weight: 700; color: var(--inkt-zacht); flex: none; }
+  .lijst li.klaar .bol { background: var(--bos); border-color: var(--bos); color: var(--veld); }
+  .lijst li.actief .bol { border-color: var(--paaltje); color: var(--paaltje); }
+  .lijst .txt { flex: 1; }
+  .lijst .txt b { display: block; font-weight: 600; }
+  .lijst .txt span { font-size: .85rem; color: var(--inkt-zacht); }
+  .lijst li.gesloten .txt { opacity: .55; }
+
+  footer { margin-top: auto; padding: 18px 16px 20px; display: flex; flex-direction: column; gap: 10px; }
+  .knop { width: 100%; padding: 14px 18px; border-radius: var(--r); border: 0; font-weight: 600;
+          cursor: pointer; }
+  .knop.primair { background: var(--paaltje); color: #fff; }
+  .knop.stil { background: transparent; color: var(--inkt-zacht); border: 1.5px solid var(--lijn); }
+  .test { display: none; gap: 8px; }
+  .test.aan { display: flex; }
+  .test .knop { padding: 10px; font-size: .9rem; }
+
+  /* Vraagvenster (bottom sheet) */
+  dialog { border: 0; padding: 0; margin: auto 0 0 0; width: 100%; max-width: 100%;
+           background: var(--wit); color: var(--inkt); border-radius: 22px 22px 0 0; }
+  dialog::backdrop { background: rgba(18, 50, 39, .55); }
+  dialog form { padding: 22px 22px calc(22px + env(safe-area-inset-bottom)); }
+  dialog .waar { color: var(--paaltje); font-weight: 600; font-size: .95rem; }
+  dialog h2 { margin: 6px 0 18px; font-size: 1.45rem; line-height: 1.25; }
+  dialog input { width: 100%; font: inherit; font-size: 1.15rem; padding: 14px 16px; border-radius: var(--r);
+                 border: 2px solid var(--lijn); background: var(--veld); color: var(--inkt); }
+  dialog input:focus { border-color: var(--bos); outline: 0; }
+  dialog .fout { color: var(--paaltje); font-size: .9rem; min-height: 1.3em; margin: 8px 2px 0; }
+  dialog .acties { display: flex; gap: 10px; margin-top: 14px; }
+  dialog .acties .knop.primair { background: var(--bos); }
+  .goed { text-align: center; padding: 30px 22px calc(30px + env(safe-area-inset-bottom)); }
+  .goed .vink { width: 72px; height: 72px; margin: 0 auto 14px; }
+  .goed h2 { margin: 0 0 6px; }
+  .goed p { margin: 0 0 20px; color: var(--inkt-zacht); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="routeNaam"></h1>
+  <div class="voortgang" id="voortgang" aria-hidden="true"></div>
+</header>
+
+<section class="kompas" id="kompas" aria-live="polite">
+  <svg class="pijl" id="pijl" viewBox="0 0 54 54" aria-hidden="true">
+    <circle cx="27" cy="27" r="25" fill="none" stroke="currentColor" stroke-opacity=".35" stroke-width="2"/>
+    <path d="M27 9 L35 31 L27 26 L19 31 Z" fill="var(--paaltje)"/>
+  </svg>
+  <div class="naar">Volgende punt</div>
+  <div class="doel" id="doel">–</div>
+  <div class="afstand" id="afstand">–</div>
+  <div class="status" id="status">Wacht op locatie…</div>
+</section>
+
+<ol class="lijst" id="lijst"></ol>
+
+<footer>
+  <div class="test" id="testbalk">
+    <button class="knop stil" id="simuleer" type="button">Simuleer aankomst</button>
+    <button class="knop stil" id="reset" type="button">Wis voortgang</button>
+  </div>
+  <button class="knop primair" id="start" type="button">Start met locatie</button>
+  <button class="knop stil" id="testmodus" type="button">Testmodus</button>
+</footer>
+
+<dialog id="vraagVenster">
+  <form method="dialog" id="vraagForm">
+    <div class="waar" id="vWaar"></div>
+    <h2 id="vTekst"></h2>
+    <input id="vInvoer" type="text" autocomplete="off" autocapitalize="off" placeholder="Jouw antwoord">
+    <div class="fout" id="vFout" role="alert"></div>
+    <div class="acties">
+      <button class="knop stil" type="button" id="vLater">Later</button>
+      <button class="knop primair" type="submit">Controleer</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="goedVenster">
+  <div class="goed">
+    <svg class="vink" viewBox="0 0 72 72" aria-hidden="true">
+      <circle cx="36" cy="36" r="34" fill="var(--bos)"/>
+      <path d="M21 37 L31 47 L52 26" fill="none" stroke="var(--veld)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <h2 id="gKop">Goed zo</h2>
+    <p id="gTekst"></p>
+    <form method="dialog"><button class="knop primair" style="background:var(--bos)">Verder</button></form>
+  </div>
+</dialog>
+
+<script>
+(() => {
+  const SLEUTEL = 'speurtocht:' + ROUTE.naam;
+  const $ = id => document.getElementById(id);
+
+  /* ---------- toestand ---------- */
+  let klaar = new Set(JSON.parse(localStorage.getItem(SLEUTEL) || '[]'));
+  let positie = null;      // {lat, lon, acc}
+  let watchId = null;
+  let openVraag = null;    // punt-id waarvan de dialoog open staat
+  let uitgesteld = new Set();
+  let testmodus = false;
+
+  const bewaar = () => localStorage.setItem(SLEUTEL, JSON.stringify([...klaar]));
+
+  /* ---------- geometrie ---------- */
+  const R = 6371000, rad = d => d * Math.PI / 180;
+  function afstand(a, b) {                       // haversine, meters
+    const dLat = rad(b.lat - a.lat), dLon = rad(b.lon - a.lon);
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+  function peiling(a, b) {                       // graden t.o.v. noord
+    const y = Math.sin(rad(b.lon - a.lon)) * Math.cos(rad(b.lat));
+    const x = Math.cos(rad(a.lat)) * Math.sin(rad(b.lat)) - Math.sin(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.cos(rad(b.lon - a.lon));
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  }
+  const fmt = m => m < 1000 ? `${Math.round(m)}<small>m</small>` : `${(m / 1000).toFixed(1)}<small>km</small>`;
+
+  /* ---------- welke punten zijn nu "actief"? ---------- */
+  function actievePunten() {
+    const open = ROUTE.punten.filter(p => !klaar.has(p.id));
+    return ROUTE.volgordeVast ? open.slice(0, 1) : open;
+  }
+  function volgendPunt() {
+    const kandidaten = actievePunten();
+    if (!kandidaten.length) return null;
+    if (!positie) return kandidaten[0];
+    return kandidaten.reduce((best, p) => afstand(positie, p) < afstand(positie, best) ? p : best);
+  }
+
+  /* ---------- weergave ---------- */
+  function teken() {
+    $('routeNaam').textContent = ROUTE.naam;
+    $('voortgang').innerHTML = ROUTE.punten.map(p =>
+      `<span class="${klaar.has(p.id) ? 'klaar' : actievePunten().includes(p) ? 'actief' : ''}"></span>`).join('');
+
+    const actief = actievePunten();
+    $('lijst').innerHTML = ROUTE.punten.map((p, i) => {
+      const st = klaar.has(p.id) ? 'klaar' : actief.includes(p) ? 'actief' : 'gesloten';
+      const d = positie ? `${Math.round(afstand(positie, p))} m` : '';
+      const sub = st === 'klaar' ? 'Beantwoord' : st === 'actief' ? (d || 'Onderweg') : 'Nog niet vrijgegeven';
+      return `<li class="${st}"><div class="bol">${st === 'klaar' ? '✓' : i + 1}</div>
+              <div class="txt"><b>${p.naam}</b><span>${sub}</span></div></li>`;
+    }).join('');
+
+    const p = volgendPunt();
+    const k = $('kompas');
+    if (!p) {
+      k.classList.add('klaar');
+      $('doel').textContent = 'Alle punten gevonden';
+      $('afstand').innerHTML = `${ROUTE.punten.length}<small>/${ROUTE.punten.length}</small>`;
+      $('status').textContent = 'De tocht is voltooid.';
+      $('pijl').style.opacity = 0;
+      return;
+    }
+    k.classList.remove('klaar');
+    $('doel').textContent = p.naam;
+    if (positie) {
+      const d = afstand(positie, p);
+      $('afstand').innerHTML = fmt(d);
+      $('pijl').style.opacity = 1;
+      $('pijl').style.transform = `rotate(${peiling(positie, p)}deg)`;
+      $('status').textContent = d <= p.straal ? 'Je bent er.' :
+        `Nauwkeurigheid ± ${Math.round(positie.acc)} m` + (testmodus ? ' · testmodus' : '');
+    } else {
+      $('afstand').innerHTML = '–';
+      $('pijl').style.opacity = 0;
+    }
+  }
+
+  /* ---------- kern: check bij elke positie-update ---------- */
+  function verwerk(pos) {
+    positie = pos;
+    teken();
+    if (openVraag) return;
+    for (const p of actievePunten()) {
+      if (uitgesteld.has(p.id)) continue;
+      if (afstand(positie, p) <= p.straal) { toonVraag(p); break; }
+    }
+  }
+
+  /* ---------- vraagvenster ---------- */
+  function toonVraag(p) {
+    openVraag = p.id;
+    $('vWaar').textContent = `Je bent bij: ${p.naam}`;
+    $('vTekst').textContent = p.vraag;
+    $('vInvoer').value = ''; $('vFout').textContent = '';
+    if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
+    $('vraagVenster').showModal();
+    setTimeout(() => $('vInvoer').focus(), 50);
+  }
+  $('vraagForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const p = ROUTE.punten.find(x => x.id === openVraag);
+    const inv = $('vInvoer').value.trim();
+    if (!inv) { $('vFout').textContent = 'Vul eerst een antwoord in.'; return; }
+    const norm = s => s.toLowerCase().replace(/\s+/g, ' ').trim();
+    const goed = !p.antwoord || p.antwoord.some(a => norm(a) === norm(inv));
+    if (!goed) { $('vFout').textContent = 'Dat is niet het juiste antwoord. Kijk nog eens goed.'; return; }
+    klaar.add(p.id); bewaar();
+    $('vraagVenster').close(); openVraag = null;
+    const rest = ROUTE.punten.length - klaar.size;
+    $('gTekst').textContent = rest ? `Nog ${rest} ${rest === 1 ? 'punt' : 'punten'} te gaan.` : 'Dat was het laatste punt.';
+    $('goedVenster').showModal();
+    teken();
+  });
+  $('vLater').addEventListener('click', () => {
+    uitgesteld.add(openVraag);           // pas weer vragen na verlaten + terugkomen
+    $('vraagVenster').close(); openVraag = null;
+  });
+  // uitstel opheffen zodra men het punt weer verlaat
+  setInterval(() => {
+    if (!positie) return;
+    for (const id of [...uitgesteld]) {
+      const p = ROUTE.punten.find(x => x.id === id);
+      if (afstand(positie, p) > p.straal * 1.5) uitgesteld.delete(id);
+    }
+  }, 5000);
+
+  /* ---------- locatie ---------- */
+  $('start').addEventListener('click', () => {
+    if (!('geolocation' in navigator)) { $('status').textContent = 'Deze browser heeft geen locatie-ondersteuning.'; return; }
+    if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; $('start').textContent = 'Start met locatie'; $('status').textContent = 'Locatie gestopt.'; return; }
+    $('status').textContent = 'Locatie opvragen…';
+    watchId = navigator.geolocation.watchPosition(
+      g => verwerk({ lat: g.coords.latitude, lon: g.coords.longitude, acc: g.coords.accuracy }),
+      err => { $('status').textContent = err.code === 1 ? 'Locatietoegang geweigerd. Sta locatie toe in de browserinstellingen.' : 'Geen locatie beschikbaar. Ga naar buiten of controleer de GPS.'; },
+      { enableHighAccuracy: true, maximumAge: 2000, timeout: 15000 });
+    $('start').textContent = 'Stop locatie';
+  });
+
+  /* ---------- testmodus (zonder te lopen) ---------- */
+  $('testmodus').addEventListener('click', () => {
+    testmodus = !testmodus;
+    $('testbalk').classList.toggle('aan', testmodus);
+    $('testmodus').textContent = testmodus ? 'Testmodus uit' : 'Testmodus';
+    if (testmodus && !positie) verwerk({ lat: ROUTE.punten[0].lat - 0.004, lon: ROUTE.punten[0].lon - 0.004, acc: 8 });
+    teken();
+  });
+  $('simuleer').addEventListener('click', () => {
+    const p = volgendPunt(); if (!p) return;
+    verwerk({ lat: p.lat + 0.00005, lon: p.lon, acc: 6 });   // ~5,5 m naast het punt
+  });
+  $('reset').addEventListener('click', () => { klaar.clear(); uitgesteld.clear(); bewaar(); teken(); });
+
+  /* ---------- start ---------- */
+  teken();
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    navigator.serviceWorker.register('sw.js', { scope: './' }).catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>
