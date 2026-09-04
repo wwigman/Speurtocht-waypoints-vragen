@@ -1,6 +1,8 @@
 # Speurtocht PWA
 
-Minimale web-app die een vraag toont zodra de telefoon binnen een straal van een GPS-punt komt.
+Digitaal deelnemersblad voor de Teamdag BB OT (rondje IJssel): opent per locatie de opdrachten zodra de telefoon binnen de straal komt, teams vullen antwoorden en foto's in en leveren aan het eind een HTML-rapport in.
+
+`index.v1.html` is de oorspronkelijke één-vraag-per-punt versie, als referentie.
 
 ## Bestanden
 - `index.html`  – de hele app; routeconfiguratie staat bovenin in `const ROUTE`
@@ -8,10 +10,12 @@ Minimale web-app die een vraag toont zodra de telefoon binnen een straal van een
 - `manifest.webmanifest`, `icon.svg` – nodig voor "Toevoegen aan beginscherm"
 
 ## Route aanpassen
-Pas `ROUTE.punten` in `index.html` aan:
+Pas `ROUTE.locaties` in `index.html` aan (per locatie een lijst `opdrachten`):
 - `lat`, `lon`: decimale graden (rechtsklik op een kaart in Komoot/OSM → coördinaten kopiëren)
 - `straal`: meters; 25–30 m is realistisch voor telefoon-GPS
-- `antwoord`: lijst met geaccepteerde antwoorden (hoofdletterongevoelig) of `null` voor vrije invoer
+- `lat`/`lon` = `null`: locatie zonder GPS, teams openen hem met de hand
+- `invoer`: `tekst`, `getal` (met `eenheid`), `tijd` of `foto`
+- `controleer: true` markeert coördinaten die nog op de verkenningsrit bevestigd moeten worden
 - `volgordeVast`: `true` = punten alleen in volgorde; `false` = willekeurige volgorde
 
 ## Hosten

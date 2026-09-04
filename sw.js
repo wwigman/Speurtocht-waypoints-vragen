@@ -1,5 +1,5 @@
 // Service worker: caches the app shell so it works without network.
-const CACHE = 'speurtocht-v2';
+const CACHE = 'speurtocht-v3';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', e => {
