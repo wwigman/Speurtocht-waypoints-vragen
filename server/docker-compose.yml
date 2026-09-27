@@ -1,0 +1,11 @@
+services:
+  route-alarm:
+    build: .
+    container_name: route-alarm
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:8050:8050"
+    volumes:
+      - ./data:/app/data
+      - ./routes.json:/app/routes.json:ro

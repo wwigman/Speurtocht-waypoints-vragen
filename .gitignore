@@ -4,3 +4,7 @@ Thumbs.db
 .vscode/
 *.docx
 *.gpx
+.env
+server/data/
+__pycache__/
+*.zip

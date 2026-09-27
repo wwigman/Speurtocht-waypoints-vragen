@@ -1,0 +1,40 @@
+{
+  "versie": "2026-09-27a",
+  "toelichting": "Coordinaten en meldstralen voor het route-alarm. Straal in meters. Aanpassen met nano; de app haalt dit bestand elke keer opnieuw op, dus een wijziging is direct actief zonder dat iemand iets hoeft te herinstalleren.",
+  "routes": [
+    {
+      "id": "r1",
+      "naam": "Route 1 - met de klok mee",
+      "komoot": "https://www.komoot.com/nl-nl/tour/3279684149?share_token=aeqN4STs3mV7uSBxDZgy2deYyOIc1CU3kJI7aZvuXj6x63Awx1",
+      "punten": [
+        { "nr": 1,  "lat": 52.059779, "lon": 6.190846, "straal": 100 },
+        { "nr": 2,  "lat": 52.056352, "lon": 6.194490, "straal": 100 },
+        { "nr": 3,  "lat": 52.032302, "lon": 6.233743, "straal": 100 },
+        { "nr": 4,  "lat": 52.030814, "lon": 6.225282, "straal": 100 },
+        { "nr": 5,  "lat": 52.006384, "lon": 6.234412, "straal": 100 },
+        { "nr": 6,  "lat": 52.011510, "lon": 6.209972, "straal": 100 },
+        { "nr": 7,  "lat": 52.042453, "lon": 6.195814, "straal": 100 },
+        { "nr": 8,  "lat": 52.062482, "lon": 6.186978, "straal": 50 },
+        { "nr": 9,  "lat": 52.063729, "lon": 6.187062, "straal": 50 },
+        { "nr": 10, "lat": 52.064810, "lon": 6.191810, "straal": 120 }
+      ]
+    },
+    {
+      "id": "r2",
+      "naam": "Route 2 - tegen de klok in",
+      "komoot": "https://www.komoot.com/nl-nl/tour/3306063277?share_token=aGgCvRyEmOojoAsjr2NhjcKDEwj5sWkMjpU74esKUszzYg15jh",
+      "punten": [
+        { "nr": 1,  "lat": 52.063974, "lon": 6.187682, "straal": 60 },
+        { "nr": 2,  "lat": 52.062482, "lon": 6.186978, "straal": 60 },
+        { "nr": 3,  "lat": 52.029139, "lon": 6.200411, "straal": 100 },
+        { "nr": 4,  "lat": 52.011510, "lon": 6.209972, "straal": 100 },
+        { "nr": 5,  "lat": 52.006210, "lon": 6.234127, "straal": 100 },
+        { "nr": 6,  "lat": 52.030814, "lon": 6.225282, "straal": 100 },
+        { "nr": 7,  "lat": 52.046851, "lon": 6.198646, "straal": 100 },
+        { "nr": 8,  "lat": 52.056352, "lon": 6.194490, "straal": 100 },
+        { "nr": 9,  "lat": 52.059779, "lon": 6.190846, "straal": 100 },
+        { "nr": 10, "lat": 52.064810, "lon": 6.191810, "straal": 120 }
+      ]
+    }
+  ]
+}

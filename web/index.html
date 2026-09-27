@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1E4B3A">
+<meta name="robots" content="noindex,nofollow">
+<title>Route-alarm</title>
+<style>
+:root{
+  --papier:#F2F4EE;
+  --inkt:#132A20;
+  --bos:#1E4B3A;
+  --paaltje:#C7452C;
+  --signaal:#FFD400;
+  --lijn:#C8D2C6;
+  --zacht:#5B6B62;
+  --wit:#FFFFFF;
+  color-scheme: light;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  background:var(--papier);
+  color:var(--inkt);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-variant-numeric:tabular-nums;
+  -webkit-text-size-adjust:100%;
+  overscroll-behavior:none;
+}
+button{font:inherit;color:inherit;cursor:pointer}
+.schil{
+  display:grid;
+  grid-template-rows:auto 1fr auto auto;
+  height:100dvh;
+  padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0);
+}
+
+/* ---------- statusstrip ---------- */
+.strip{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 16px;
+  background:var(--bos);color:var(--papier);
+  font-size:.9rem;font-weight:600;
+}
+.strip .rek{margin-left:auto;display:flex;align-items:center;gap:8px;font-weight:500;opacity:.9}
+.stip{width:10px;height:10px;border-radius:50%;background:var(--paaltje);flex:none}
+.stip.aan{background:#8FD14F}
+.stip.zwak{background:var(--signaal)}
+
+/* ---------- meter ---------- */
+.meter{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;padding:8px 16px;text-align:center;min-height:0;
+}
+.getal{
+  font-size:clamp(4rem,26vw,9rem);
+  font-weight:800;letter-spacing:-.045em;line-height:.92;
+}
+.eenheid{font-size:1.1rem;font-weight:700;color:var(--zacht);letter-spacing:.02em}
+.naar{margin-top:14px;font-size:1.35rem;font-weight:700}
+.naar b{color:var(--bos)}
+.fijn{margin-top:6px;font-size:.9rem;color:var(--zacht);max-width:34ch;line-height:1.35}
+
+/* ---------- voortgang ---------- */
+.voortgang{padding:0 16px 10px;display:flex;flex-direction:column;gap:8px;align-items:center}
+.bolletjes{display:flex;gap:7px;flex-wrap:wrap;justify-content:center}
+.bol{
+  width:26px;height:26px;border-radius:50%;
+  border:2px solid var(--lijn);background:var(--wit);
+  display:grid;place-items:center;font-size:.75rem;font-weight:700;color:var(--zacht);
+}
+.bol.klaar{background:var(--bos);border-color:var(--bos);color:var(--papier)}
+.bol.over{background:var(--wit);border-color:var(--paaltje);color:var(--paaltje);text-decoration:line-through}
+.bol.nu{border-color:var(--inkt);color:var(--inkt);box-shadow:0 0 0 3px rgba(19,42,32,.12)}
+.telling{font-size:.85rem;color:var(--zacht)}
+
+/* ---------- knoppen ---------- */
+.acties{padding:0 16px 16px;display:grid;gap:8px}
+.knop{
+  border:2px solid var(--bos);background:var(--wit);color:var(--bos);
+  border-radius:14px;padding:16px;font-weight:700;font-size:1.05rem;
+  min-height:58px;width:100%;
+}
+.knop.vol{background:var(--bos);color:var(--papier)}
+.knop.stil{border-color:var(--lijn);color:var(--zacht);font-weight:600;font-size:.95rem;min-height:46px;padding:12px}
+.knop:active{transform:translateY(1px)}
+.knop:focus-visible{outline:3px solid var(--paaltje);outline-offset:2px}
+.rij{display:flex;gap:8px}
+.rij .knop{flex:1}
+
+/* ---------- startscherm ---------- */
+.start{
+  position:fixed;inset:0;z-index:40;background:var(--papier);
+  display:flex;flex-direction:column;gap:18px;
+  padding:calc(env(safe-area-inset-top,0) + 28px) 22px calc(env(safe-area-inset-bottom,0) + 22px);
+  overflow-y:auto;
+}
+.start h1{margin:0;font-size:1.9rem;line-height:1.1;letter-spacing:-.02em}
+.start p{margin:0;color:var(--zacht);line-height:1.45;max-width:38ch}
+.veld{display:flex;flex-direction:column;gap:8px}
+.veld > span{font-weight:700;font-size:1rem}
+input[type=text]{
+  font:inherit;font-weight:700;font-size:1.25rem;text-transform:uppercase;
+  padding:14px;border:2px solid var(--lijn);border-radius:12px;background:var(--wit);
+  color:var(--inkt);width:100%;
+}
+input[type=text]:focus{outline:none;border-color:var(--bos)}
+.keuze{display:grid;gap:8px}
+.optie{
+  border:2px solid var(--lijn);background:var(--wit);border-radius:12px;
+  padding:14px 16px;text-align:left;font-weight:700;
+}
+.optie small{display:block;font-weight:500;color:var(--zacht);margin-top:3px;font-size:.85rem}
+.optie[aria-pressed=true]{border-color:var(--bos);background:#E7EEE8}
+.fout{color:var(--paaltje);font-weight:700;font-size:.95rem;min-height:1.2em}
+
+/* ---------- alarm ---------- */
+.alarm{
+  position:fixed;inset:0;z-index:50;background:var(--signaal);color:var(--inkt);
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  gap:6px;text-align:center;
+  padding:calc(env(safe-area-inset-top,0) + 24px) 22px calc(env(safe-area-inset-bottom,0) + 24px);
+}
+.alarm.aan{display:flex}
+.alarm .vraag{font-size:clamp(3.2rem,18vw,7rem);font-weight:800;letter-spacing:-.04em;line-height:.95}
+.alarm .stop{font-size:1.5rem;font-weight:700;margin-top:4px}
+.alarm .alarm-afstand{font-size:1.15rem;font-weight:700;color:#5A4B00;margin-top:10px}
+.alarm .uitleg{color:#5A4B00;font-size:1rem;margin-top:10px;max-width:30ch;line-height:1.4}
+.alarm .knop{margin-top:26px;max-width:420px;background:var(--inkt);border-color:var(--inkt);color:var(--signaal);font-size:1.2rem;min-height:66px}
+@media (prefers-reduced-motion:no-preference){
+  .alarm.aan .vraag{animation:tik .9s ease-in-out 3}
+}
+@keyframes tik{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+
+/* ---------- klaar ---------- */
+.klaar-scherm{text-align:center}
+.klaar-scherm .getal{color:var(--bos)}
+</style>
+</head>
+<body>
+
+<div class="schil" id="hoofd" hidden>
+  <div class="strip">
+    <span id="teamLabel">—</span>
+    <span id="routeLabel">—</span>
+    <span class="rek">
+      <span id="syncLabel">nog niet gesynct</span>
+      <span class="stip" id="gpsStip" title="GPS"></span>
+    </span>
+  </div>
+
+  <div class="meter" id="meter">
+    <div class="getal" id="afstand">—</div>
+    <div class="eenheid" id="eenheid">meter tot het volgende punt</div>
+    <div class="naar" id="naar">Wachten op GPS</div>
+    <div class="fijn" id="fijn">Houd deze pagina open en het scherm aan. Navigeren doe je in Komoot.</div>
+  </div>
+
+  <div class="voortgang">
+    <div class="bolletjes" id="bolletjes"></div>
+    <div class="telling" id="telling"></div>
+  </div>
+
+  <div class="acties">
+    <button class="knop vol" id="handmatig">Wij staan bij het punt</button>
+    <div class="rij">
+      <button class="knop stil" id="komoot">Route in Komoot</button>
+      <button class="knop stil" id="overslaan">Punt overslaan</button>
+    </div>
+  </div>
+</div>
+
+<div class="start" id="startScherm">
+  <h1>Route-alarm</h1>
+  <p>Deze pagina piept zodra je bij een vraagpunt bent. De vragen zelf staan op je papieren blad. Installeren hoeft niet, laat het venster gewoon openstaan.</p>
+
+  <label class="veld">
+    <span>Teamcode</span>
+    <input type="text" id="teamInvoer" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="bijv. ROOD">
+  </label>
+
+  <div class="veld">
+    <span>Welke route rijden jullie?</span>
+    <div class="keuze" id="routeKeuze"></div>
+  </div>
+
+  <div class="fout" id="startFout"></div>
+
+  <button class="knop vol" id="startKnop">Geluid aan en beginnen</button>
+  <p>Bij het starten vraagt je telefoon toestemming voor je locatie. Zeg ja, anders kan de pagina niet waarschuwen en moet je elk punt met de hand afvinken.</p>
+</div>
+
+<div class="alarm" id="alarmScherm" role="alertdialog" aria-live="assertive">
+  <div class="stop">Stop hier</div>
+  <div class="vraag" id="alarmVraag">Vraag —</div>
+  <div class="alarm-afstand" id="alarmAfstand"></div>
+  <div class="uitleg">Pak je blad erbij en beantwoord deze vraag voordat je verder rijdt.</div>
+  <button class="knop" id="alarmKnop">Gezien, alarm uit</button>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const API = new URL('api/', location.href.replace(/[^/]*$/, '')).href;
+  const BEWAAR = 'route-alarm-v1';
+  const $ = id => document.getElementById(id);
+
+  /* ---------- toestand ---------- */
+  const leeg = () => ({ team:'', route:'', gestart:'', klaar:{}, positie:null, apparaat:'' });
+  let S = leeg();
+  try { const r = localStorage.getItem(BEWAAR); if (r) S = Object.assign(leeg(), JSON.parse(r)); } catch {}
+  const bewaar = () => { try { localStorage.setItem(BEWAAR, JSON.stringify(S)); } catch {} };
+  if (!S.apparaat) { S.apparaat = Math.random().toString(36).slice(2, 10); bewaar(); }
+
+  let config = null, punten = [], alarmActief = null, beepTimer = null, ctx = null;
+  let laatsteSync = 0, syncBezig = false, wakeLock = null;
+  const gewaarschuwd = new Set();
+
+  /* Een hangende verbinding is op de fiets het echte probleem, niet een foutmelding.
+     Daarom kapt elke aanroep zichzelf na tien seconden af. */
+  function metTimeout(url, opties, ms = 10000) {
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), ms);
+    return fetch(url, Object.assign({ signal: ac.signal }, opties)).finally(() => clearTimeout(t));
+  }
+
+  /* ---------- routeconfiguratie ---------- */
+  async function haalConfig() {
+    try {
+      const r = await metTimeout(API + 'routes', { cache:'no-store' });
+      if (!r.ok) throw new Error(r.status);
+      const c = await r.json();
+      localStorage.setItem(BEWAAR + '-routes', JSON.stringify(c));
+      return c;
+    } catch {
+      const r = localStorage.getItem(BEWAAR + '-routes');
+      if (r) return JSON.parse(r);
+      throw new Error('geen routeconfiguratie');
+    }
+  }
+
+  function tekenRouteKeuze() {
+    $('routeKeuze').innerHTML = '';
+    config.routes.forEach(r => {
+      const b = document.createElement('button');
+      b.className = 'optie';
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(S.route === r.id));
+      b.innerHTML = '<span>' + r.naam + '</span><small>' + r.punten.length + ' vraagpunten</small>';
+      b.addEventListener('click', () => {
+        S.route = r.id; bewaar();
+        [...$('routeKeuze').children].forEach(k => k.setAttribute('aria-pressed','false'));
+        b.setAttribute('aria-pressed','true');
+      });
+      $('routeKeuze').appendChild(b);
+    });
+  }
+
+  /* ---------- rekenen ---------- */
+  function afstandM(a, b) {
+    const R = 6371000, rad = Math.PI/180;
+    const dp = (b.lat-a.lat)*rad, dl = (b.lon-a.lon)*rad;
+    const h = Math.sin(dp/2)**2 + Math.cos(a.lat*rad)*Math.cos(b.lat*rad)*Math.sin(dl/2)**2;
+    return 2*R*Math.asin(Math.sqrt(h));
+  }
+  const volgende = () => punten.find(p => !S.klaar[p.nr]);
+
+  /* ---------- geluid en trillen ---------- */
+  function ontgrendelGeluid() {
+    try {
+      ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === 'suspended') ctx.resume();
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      g.gain.value = 0.0001; o.connect(g); g.connect(ctx.destination);
+      o.start(); o.stop(ctx.currentTime + 0.02);
+    } catch {}
+  }
+  function piep() {
+    if (!ctx) return;
+    const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'square'; o.frequency.value = 880;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.35, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t); o.stop(t + 0.2);
+  }
+
+  /* ---------- scherm aan houden ---------- */
+  async function houdWakker() {
+    if (!('wakeLock' in navigator)) return;
+    try { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } catch {}
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') { if (!wakeLock) houdWakker(); if (ctx && ctx.state === 'suspended') ctx.resume(); }
+  });
+
+  /* ---------- alarm ---------- */
+  function startAlarm(p) {
+    if (alarmActief) return;
+    alarmActief = p;
+    $('alarmVraag').textContent = 'Vraag ' + p.nr;
+    $('alarmAfstand').textContent = S.positie ? meters(afstandM(S.positie, p)) : '';
+    $('alarmScherm').classList.add('aan');
+    const puls = () => { piep(); setTimeout(piep, 260); if (navigator.vibrate) navigator.vibrate([420,160,420]); };
+    puls();
+    beepTimer = setInterval(puls, 1800);
+  }
+  function stopAlarm(hoe) {
+    if (!alarmActief) return;
+    clearInterval(beepTimer); beepTimer = null;
+    if (navigator.vibrate) navigator.vibrate(0);
+    if (hoe) S.klaar[alarmActief.nr] = { t:new Date().toISOString(), hoe, door:S.apparaat };
+    alarmActief = null;
+    $('alarmScherm').classList.remove('aan');
+    bewaar(); teken();
+    if (hoe) sync(true);
+  }
+
+  /* ---------- GPS ---------- */
+  function startGps() {
+    if (!navigator.geolocation) { $('naar').textContent = 'Geen GPS op dit toestel'; return; }
+    navigator.geolocation.watchPosition(pos => {
+      const p = { lat:pos.coords.latitude, lon:pos.coords.longitude, acc:Math.round(pos.coords.accuracy||0), t:new Date().toISOString() };
+      S.positie = p; bewaar();
+      const stip = $('gpsStip');
+      stip.className = 'stip ' + (p.acc <= 25 ? 'aan' : 'zwak');
+      if (alarmActief) { $('alarmAfstand').textContent = meters(afstandM(p, alarmActief)); return; }
+      const doel = volgende();
+      if (!doel) return;
+      const d = afstandM(p, doel);
+      toonAfstand(d, doel);
+      // Een fix met meer dan 100 meter onzekerheid zegt niets; daar geen alarm op baseren.
+      if (d <= doel.straal && p.acc <= 100) startAlarm(doel);
+      else if (d <= 300 && !gewaarschuwd.has(doel.nr)) { gewaarschuwd.add(doel.nr); piep(); }
+    }, err => {
+      $('gpsStip').className = 'stip';
+      $('naar').textContent = err.code === 1 ? 'Geen toestemming voor locatie' : 'Geen GPS-signaal';
+      $('fijn').textContent = 'Vink de punten met de hand af met de groene knop hieronder.';
+    }, { enableHighAccuracy:true, maximumAge:5000, timeout:25000 });
+  }
+
+  const meters = d => d >= 1000
+    ? 'nog ' + (d/1000).toFixed(1).replace('.', ',') + ' km'
+    : (d < 25 ? 'jullie staan er bovenop' : 'nog ongeveer ' + Math.round(d/10)*10 + ' meter');
+
+  function toonAfstand(d, doel) {
+    if (d >= 1000) { $('afstand').textContent = (d/1000).toFixed(1).replace('.', ','); $('eenheid').textContent = 'kilometer tot het volgende punt'; }
+    else { $('afstand').textContent = Math.round(d/10)*10; $('eenheid').textContent = 'meter tot het volgende punt'; }
+    $('naar').innerHTML = 'Op weg naar <b>vraag ' + doel.nr + '</b>';
+    $('fijn').textContent = d < 400
+      ? 'Bijna. De pagina piept zodra jullie er zijn.'
+      : 'Houd deze pagina open en het scherm aan. Navigeren doe je in Komoot.';
+  }
+
+  /* ---------- tekenen ---------- */
+  function teken() {
+    const gedaan = punten.filter(p => S.klaar[p.nr]).length;
+    $('bolletjes').innerHTML = '';
+    const nu = volgende();
+    punten.forEach(p => {
+      const k = S.klaar[p.nr];
+      const el = document.createElement('div');
+      el.className = 'bol' + (k ? (k.hoe === 'overgeslagen' ? ' over' : ' klaar') : '') + (nu && nu.nr === p.nr ? ' nu' : '');
+      el.textContent = p.nr;
+      el.title = k ? 'vraag ' + p.nr + ': ' + k.hoe : 'vraag ' + p.nr;
+      $('bolletjes').appendChild(el);
+    });
+    $('telling').textContent = gedaan + ' van ' + punten.length + ' punten gehad';
+    if (!nu) {
+      $('afstand').textContent = '10';
+      $('eenheid').textContent = 'van de 10 punten gehad';
+      $('naar').textContent = 'Klaar, rij terug naar de start';
+      $('fijn').textContent = 'Lever je blad in bij de jury.';
+      $('handmatig').disabled = true; $('overslaan').disabled = true;
+    }
+  }
+
+  /* ---------- sync ---------- */
+  async function sync(nu) {
+    if (syncBezig || !S.team) return;
+    if (!nu && Date.now() - laatsteSync < 15000) return;
+    syncBezig = true;
+    try {
+      const r = await metTimeout(API + 'ping', {
+        method:'POST', headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ code:S.team, route:S.route, gestart:S.gestart, klaar:S.klaar, positie:S.positie, apparaat:S.apparaat })
+      });
+      if (r.ok) {
+        laatsteSync = Date.now();
+        $('syncLabel').textContent = 'gesynct ' + new Date().toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
+        const a = await r.json();
+        if (a && a.klaar) neemOver(a.klaar);
+      }
+      else $('syncLabel').textContent = 'sync geweigerd';
+    } catch {
+      const min = laatsteSync ? Math.round((Date.now()-laatsteSync)/60000) : null;
+      $('syncLabel').textContent = min === null ? 'nog niet gesynct' : 'offline, ' + min + ' min';
+    } finally { syncBezig = false; }
+  }
+  /* Wat een teamgenoot al heeft afgevinkt, telt hier ook. Zo piept niet iedere
+     telefoon opnieuw en pakt een vervangend toestel de stand van het team op. */
+  function neemOver(vanServer) {
+    let anders = false;
+    for (const nr in vanServer) if (!S.klaar[nr]) { S.klaar[nr] = vanServer[nr]; anders = true; }
+    if (alarmActief && S.klaar[alarmActief.nr]) stopAlarm(null);   // teamgenoot heeft al getikt
+    if (anders) { bewaar(); teken(); }
+  }
+
+  setInterval(() => sync(false), 15000);
+
+  /* ---------- starten ---------- */
+  function begin() {
+    punten = config.routes.find(r => r.id === S.route).punten;
+    $('teamLabel').textContent = S.team;
+    $('routeLabel').textContent = config.routes.find(r => r.id === S.route).naam.replace(/^Route /, 'route ');
+    $('startScherm').style.display = 'none';
+    $('hoofd').hidden = false;
+    teken(); houdWakker(); startGps(); sync(true);
+  }
+
+  $('startKnop').addEventListener('click', () => {
+    const code = $('teamInvoer').value.trim().toUpperCase();
+    if (!code) { $('startFout').textContent = 'Vul je teamcode in.'; return; }
+    if (!S.route) { $('startFout').textContent = 'Kies eerst een route.'; return; }
+    $('startFout').textContent = '';
+    S.team = code; S.gestart = S.gestart || new Date().toISOString(); bewaar();
+    ontgrendelGeluid();
+    begin();
+  });
+
+  $('alarmKnop').addEventListener('click', () => stopAlarm('gps'));
+  $('handmatig').addEventListener('click', () => {
+    const p = volgende(); if (!p) return;
+    if (!confirm('Vraag ' + p.nr + ' afvinken? Doe dit alleen als je echt bij het punt staat.')) return;
+    S.klaar[p.nr] = { t:new Date().toISOString(), hoe:'handmatig' };
+    bewaar(); teken(); sync(true);
+  });
+  $('overslaan').addEventListener('click', () => {
+    const p = volgende(); if (!p) return;
+    if (!confirm('Vraag ' + p.nr + ' overslaan? De jury ziet dit terug.')) return;
+    S.klaar[p.nr] = { t:new Date().toISOString(), hoe:'overgeslagen' };
+    bewaar(); teken(); sync(true);
+  });
+  $('komoot').addEventListener('click', () => {
+    const r = config.routes.find(r => r.id === S.route);
+    if (r && r.komoot) window.open(r.komoot, '_blank', 'noopener');
+  });
+
+  /* ---------- opstarten ---------- */
+  (async () => {
+    try { config = await haalConfig(); }
+    catch { $('startFout').textContent = 'Routeconfiguratie niet op te halen. Zet even internet aan en ververs.'; return; }
+    tekenRouteKeuze();
+    if (S.team) $('teamInvoer').value = S.team;
+    if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js', { scope:'./' }).catch(() => {});
+  })();
+})();
+</script>
+</body>
+</html>
